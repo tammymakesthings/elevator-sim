@@ -6,16 +6,47 @@ allows building of applications for Windows, macOS, Linux, iOS and Android.
 
 ## Running It
 
+### Running with the 8th interpreter
+
 1. Download [8th][8th] and install it.
-2. Edit [elevator.sh](./elevator.sh) as needed for your platform.
-3. Run [elevator.sh](./elevator.sh), making sure [elevator.8th](./elevator.8th) is
-   in the correct directory.
+2. Make sure the paths at the start of the [Makefile](./Makefile) are set correctly.
+   You can check them with the command:
+
+   ```shell
+   $ make config
+   ```
+3. At your shell prompt, type:
+
+    ```shell
+    $ make run
+    ```
+
+### Compiling the executable
+
+1. Ensure you've installed [8th][8th] and set the paths correctly in the Makefile.
+2. Make sure the paths at the start of the [Makefile](./Makefile) are set correctly.
+   You can check them with the command:
+
+   ```shell
+   $ make config
+   ```
+3. At your shell prompt, type:
+
+    ```shell
+    $ make build
+    ```
+
+The compiled executables will be in the [out/](./out/) directory. You can change which
+platforms are built by editing the project file [8th.proj](./8th.proj).
 
 ## Author
 
 Tammy Cravit <tammy@tammymakesthings.com>
 
 ## Version History
+
+###  v1.01 - 2026-11-15
+- Added Makefile and associated tooling.
 
 ###  v1.00 - 2026-11-15
 - Initial Revision

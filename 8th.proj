@@ -1,0 +1,47 @@
+{
+  "ver": 3,
+  "stripall": false,
+  "perms": {
+    "ios": {},
+    "droid": {
+      "bt": false,
+      "network": false,
+      "loc-coarse": false,
+      "bt-admin": false,
+      "camera": false,
+      "finger": false,
+      "record-audio": false,
+      "modify-audio": false,
+      "write-extern": false,
+      "vibrate": false,
+      "phone": false,
+      "extern": false,
+      "loc-fine": false,
+      "internet": false
+    },
+    "osx": {}
+  },
+  "enc": false,
+  "ignore-files": [],
+  "strip": false,
+  "app-ver": "",
+  "app-name": "elevator",
+  "source": "elevator.8th",
+  "ignore-paths": [".git/*"],
+  "id": "",
+  "gui": false,
+  "links": true,
+  "icon": "",
+  "platform": {
+    "osxm1": true,
+    "rpi64": false,
+    "lin32": false,
+    "lin64": true,
+    "rpi32": false,
+    "ios": false,
+    "windows": true,
+    "android": false,
+    "osx": true
+  },
+  "droid-bits": "android"
+}

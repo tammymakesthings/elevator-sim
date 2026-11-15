@@ -61,8 +61,9 @@ new-button-array var, car-buttons    \ buttons inside the car
 true var, running                    \ Is the elevator currently running?
 null var, priority                   \ priority floor, or null when not set
 false var, holding                   \ true once we've arrived at the priority floor
-false var, doors-open
+false var, doors-open                \ true if the elevator doors are open
 0 var, door-age                      \ cycles since the doors opened
+null var, reader-task                \ a reference to the reader task
 
 \ ---------------------------------------------------------------------
 \ Output
@@ -488,20 +489,22 @@ false var, doors-open
     CYCLE-DELAY-SECS sleep
   then ;
 
-: run  \ --
+: event-loop-cycle  \ --
   repeat
     tick
     running @
   while! ;
 
-show-help
-null rand-pcg-seed   \ different random presses each run
-\ Keep a reference to the task -- dropping it lets 8th free the task
-\ while it's still running.
-' reader t:task var, reader-task
-run
-\ The reader task is still blocked waiting for a line of input, which
-\ would keep bye from exiting. Kill it (no grace period) first.
-reader-task @ 0 t:kill
-"Stopped at floor " . current-floor @ . cr
-bye
+: app:main \ --
+  show-help
+  null rand-pcg-seed   \ different random presses each run
+  \ Keep a reference to the task -- dropping it lets 8th free the task
+  \ while it's still running.
+  ' reader t:task reader-task !
+  event-loop-cycle
+  \ The reader task is still blocked waiting for a line of input, which
+  \ would keep bye from exiting. Kill it (no grace period) first.
+  reader-task @ 0 t:kill
+  "Stopped at floor " . current-floor @ . cr
+  bye
+;
