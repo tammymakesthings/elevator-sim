@@ -1,0 +1,507 @@
+\ elevator.8th 
+\ ==============================================================================
+\ Simple elevator simulation, version 1.0
+\ 2026-11-15 Tammy Cravit <tammy@tammymakesthings.com>
+\ SPDX-License-Identifier: MIT
+\ SPDX-CopyrightText: 2026, Tammy Cravit. All rights reserved.
+\ ==============================================================================
+\
+\ Floors are numbered 1 .. FLOORS.
+\
+\ The elevator uses a "LOOK" strategy: it keeps moving in its current
+\ direction while there are requests ahead of it, and only reverses
+\ when there's nothing left in that direction.
+\
+\ Commands (type while it runs, then Enter):
+\
+\   u N       press UP on floor N
+\   d N       press DOWN on floor N
+\   c N       press floor N inside the car
+\   r N       press N random buttons
+\   p N       priority call: go straight to floor N and hold there
+\   x         clear the priority call
+\   s         show current state
+\   h, ?      show help
+\   v         show version
+\   q         quit
+\ 
+\ Note that the simulation may take up to one cycle to act on command inputs.
+
+\ ---------------------------------------------------------------------
+\ Configuration
+\ ---------------------------------------------------------------------
+
+"1.0" constant APP-VERSION
+"Tammy Cravit <tammy@tammymakesthings.com>" constant APP-AUTHOR
+"2026-11-15" constant APP-DATE
+
+32 constant FLOORS             \ number of floors
+4 constant  IDLE-LIMIT         \ park after this many cycles with no movement
+1 constant  CYCLE-DELAY-SECS   \ pause at the end of each cycle
+
+1 constant  UP                 \ Elevator is moving up
+-1 constant DOWN               \ Elevator is moving down
+0 constant  IDLE               \ Elevator is idle (parked)
+
+\ ---------------------------------------------------------------------
+\ State
+\ ---------------------------------------------------------------------
+
+: new-button-array  \ -- a      ( indices 1..FLOORS, all false; 0 is unused )
+  a:new ( drop false a:push ) 0 FLOORS loop ;
+
+new-button-array var, up-buttons     \ hall UP buttons
+new-button-array var, down-buttons   \ hall DOWN buttons
+new-button-array var, car-buttons    \ buttons inside the car
+
+1 var, current-floor                 \ Current floor
+0 var, direction                     \ UP, DOWN, or IDLE
+0 var, idle-cycles                   \ Idle cycles counter
+0 var, cycle                         \ Current simulation cycle count
+true var, running                    \ Is the elevator currently running?
+null var, priority                   \ priority floor, or null when not set
+false var, holding                   \ true once we've arrived at the priority floor
+false var, doors-open
+0 var, door-age                      \ cycles since the doors opened
+
+\ ---------------------------------------------------------------------
+\ Output
+\ ---------------------------------------------------------------------
+
+: log  \ --   ( prefix each line with the cycle number )
+  "[" . cycle @ . "] " . ;
+
+\ ---------------------------------------------------------------------
+\ Button array access
+\ ---------------------------------------------------------------------
+
+: btn@  \ n a -- ?
+  swap a:@ nip ;
+
+: btn!  \ ? n a --
+  swap rot a:! drop ;
+
+\ Get the value of the specified button for floor F - all are ( f -- bool )
+: up@    up-buttons @ btn@ ;
+: down@  down-buttons @ btn@ ;
+: car@   car-buttons @ btn@ ;
+
+\ Set the value of the specified button for floor F - all are ( f bool -- )
+: up!    up-buttons @ btn! ;
+: down!  down-buttons @ btn! ;
+: car!   car-buttons @ btn! ;
+
+: request-at?  \ n -- ?
+  dup up@ over down@ or swap car@ or ;
+
+: valid-floor?  \ n -- ?
+  dup 0 n:> swap FLOORS n:1+ n:< and ;
+
+\ ---------------------------------------------------------------------
+\ Pushing buttons
+\ ---------------------------------------------------------------------
+
+: push-up  \ n --     ( no UP button on the top floor )
+  dup valid-floor? over FLOORS n:< and if
+    log "UP pressed on floor " . dup . cr
+    true swap up!
+  else
+    log "Ignored: no UP button on floor " . . cr
+  then ;
+
+: push-down  \ n --   ( no DOWN button on the bottom floor )
+  dup valid-floor? over 1 n:> and if
+    log "DOWN pressed on floor " . dup . cr
+    true swap down!
+  else
+    log "Ignored: no DOWN button on floor " . . cr
+  then ;
+
+: push-car  \ n --
+  dup valid-floor? if
+    log "Car button pressed for floor " . dup . cr
+    true swap car!
+  else
+    log "Ignored: no floor " . . cr
+  then ;
+
+\ ---------------------------------------------------------------------
+\ Simulate random button presses
+\ ---------------------------------------------------------------------
+
+: random  \ n -- r     ( random integer 0 .. n-1 )
+  rand-pcg swap n:mod ;
+
+\ Press one random button: a random floor, then UP, DOWN or car.
+\ UP on the top floor becomes DOWN, and DOWN on the bottom floor
+\ becomes UP, since those buttons don't exist.
+: press-random  \ --
+  FLOORS random n:1+  3 random     \ floor kind
+  dup 0 n:= if
+    drop dup FLOORS n:= if push-down else push-up then
+  else 1 n:= if
+    dup 1 n:= if push-up else push-down then
+  else
+    push-car
+  then then ;
+
+\ Returns true if the presses were made, false if the count was rejected.
+: press-randoms  \ n -- ok?
+  dup 1 n:< if
+    log "Ignored: r needs a count of 1 or more" . cr
+    drop false
+  else dup FLOORS 3 n:* 2 n:- n:> if
+    log "Ignored: r count can't be more than " . FLOORS 3 n:* 2 n:- . cr
+    drop false
+  else
+    log "Pressing " . dup . " random button(s)" . cr
+    ( press-random ) swap times
+    true
+  then then ;
+
+\ ---------------------------------------------------------------------
+\ Priority (e.g. fire service) calls
+\ ---------------------------------------------------------------------
+
+: priority?  \ -- ?
+  priority @ null? nip not ;
+
+: set-priority  \ n --
+  dup valid-floor? if
+    log "PRIORITY call to floor " . dup . " -- normal service suspended" . cr
+    priority !
+    false holding !
+  else
+    log "Ignored: no floor " . . cr
+  then ;
+
+: clear-priority  \ --
+  priority? if
+    log "PRIORITY cleared -- resuming normal service" . cr
+    null priority !
+    false holding !
+    0 direction !
+    0 idle-cycles !
+    0 door-age !      \ if doors are open, give one boarding cycle, then close
+  else
+    log "No priority call is active" . cr
+  then ;
+
+\ ---------------------------------------------------------------------
+\ Looking at the state
+\ ---------------------------------------------------------------------
+
+\ loop does nothing when lo > hi, which handles the top/bottom floors.
+: any-requests?  \ lo hi -- ?     ( any button pressed for floors lo..hi )
+  false -rot ( request-at? or ) -rot loop ;
+
+: requests-above?  \ -- ?
+  current-floor @ n:1+ FLOORS any-requests? ;
+
+: requests-below?  \ -- ?
+  1 current-floor @ n:1- any-requests? ;
+
+: dir>s  \ n -- s
+  dup UP n:= if drop "up" else DOWN n:= if "down" else "idle" then then ;
+
+\ Should we stop at the current floor?
+\ - Always stop if someone in the car asked for this floor.
+\ - Going up: stop for an UP call, or for a DOWN call if nothing is
+\   above us (we're about to turn around). Going down is the mirror.
+\ - Idle: stop for any call here.
+: should-stop?  \ -- ?
+  current-floor @
+  dup car@ if drop true else
+  direction @ UP n:= if
+    dup up@ swap down@ requests-above? not and or
+  else direction @ DOWN n:= if
+    dup down@ swap up@ requests-below? not and or
+  else
+    request-at?
+  then then then ;
+
+\ Pick a direction, preferring to keep going the way we're already going.
+: choose-direction  \ -- dir
+  direction @  UP n:= requests-above? and if  UP else
+  direction @ DOWN n:= requests-below? and if DOWN else
+  requests-above? if  UP else
+  requests-below? if DOWN else
+  IDLE then then then then ;
+
+\ Decide the next floor (also records the chosen direction).
+\ Returns the current floor if the elevator should not move.
+: next-floor  \ -- n
+  should-stop? if
+    current-floor @
+  else
+    choose-direction dup direction !  current-floor @ n:+
+  then ;
+
+\ ---------------------------------------------------------------------
+\ Servicing a floor
+\ ---------------------------------------------------------------------
+
+\ The car button for this floor is always cleared. For hall buttons:
+\ if we'll keep going the same way, only clear that direction's button;
+\ otherwise clear both.
+\ Clear the call(s) answered at this floor. Also run while the doors
+\ are open, so a button pressed for this floor during boarding is
+\ answered without reopening.
+: clear-calls  \ --
+  current-floor @
+  false over car!
+  direction @  UP n:= requests-above? and if
+    false swap up!
+  else direction @ DOWN n:= requests-below? and if
+    false swap down!
+  else
+    false over up!  false swap down!
+  then then ;
+
+: open-doors  \ --
+  true doors-open !
+  0 door-age !
+  log "Doors open at floor " . current-floor @ . cr ;
+
+: close-doors  \ --
+  false doors-open !
+  log "Doors closing at floor " . current-floor @ . cr ;
+
+: service  \ --
+  clear-calls open-doors ;
+
+\ Called each cycle while the doors are open:
+\ the cycle after opening is for boarding, the next one closes them.
+: door-step  \ --
+  clear-calls
+  door-age @ n:1+ dup door-age !
+  1 n:= if
+    log "Passengers boarding at floor " . current-floor @ . cr
+  else
+    close-doors
+  then ;
+
+\ ---------------------------------------------------------------------
+\ Keyboard input
+\ ---------------------------------------------------------------------
+
+\ Runs in its own task: blocks reading lines and sends each one to the
+\ main task's queue (t:push), so the main loop never waits on the
+\ keyboard. f:getline returns null at end of input (Ctrl-D); that null
+\ is sent too, and means "quit".
+: reader  \ --
+  f:stdin
+  repeat
+    f:getline                    \ f s
+    dup t:main swap t:push       \ f s
+    null? nip not                \ f more?
+  while!
+  drop ;
+
+: show-banner  \ --
+  "******************************************************************************" . cr
+  "Elevator simulation v" . 
+  APP-VERSION . 
+  " (" . 
+  APP-DATE . 
+  ") -- " . 
+  FLOORS . 
+  " floors" . cr
+  APP-AUTHOR . cr 
+  "******************************************************************************" . cr
+  cr
+  ;
+
+: show-help  \ --
+  show-banner
+  "Commands (floors are 1-" . FLOORS . "):" . cr
+  "  u N   press UP on floor N" . cr
+  "  d N   press DOWN on floor N" . cr
+  "  c N   press floor N inside the car" . cr
+  "  r N   press N random buttons (N = 1-" . FLOORS 3 n:* . ")" . cr
+  "  p N   priority call: go straight to floor N and hold there" . cr
+  "  x     clear the priority call" . cr
+  "  s     show current state" . cr
+  "  h, ?  show this help" . cr
+  "  v     show version" . cr
+  "  q     quit" . cr ;
+
+: show-version  \ --
+  "Elevator simulation version " . APP-VERSION . cr ;
+
+: bad-command  \ --
+  log "Unknown command -- type h for help" . cr ;
+
+\ ---------------------------------------------------------------------
+\ State display
+\ ---------------------------------------------------------------------
+
+\ Floor numbers (as strings) whose button is pressed in this array.
+: pressed  \ btns -- a
+  a:new swap                      \ result btns
+  ( \ result btns n
+    2dup a:@ nip if               \ result btns n
+      rot swap >s a:push swap     \ result' btns
+    else
+      drop
+    then
+  ) 1 FLOORS loop
+  drop ;
+
+: show-floors  \ btns --
+  pressed
+  dup a:len nip 0 n:= if drop "none" else ", " a:join then
+  . cr ;
+
+: show-state  \ --
+  "-----" . cr
+  "Max floors    : " . FLOORS . cr
+  "Current state : " . direction @ dir>s s:uc .
+  " on floor " . current-floor @ . cr
+  "Doors         : " . doors-open @ if "OPEN" else "CLOSED" then . cr
+  "Priority      : " .
+  priority? if
+    "floor " . priority @ .
+    holding @ if " (holding)" else " (en route)" then .
+  else
+    "none" .
+  then cr
+  cr
+  "Up buttons    : "   . up-buttons   @ show-floors
+  "Down buttons  : " . down-buttons @ show-floors
+  "Car buttons   : "  . car-buttons  @ show-floors
+  "-----" . cr ;
+
+: dispatch  \ n cmd --
+  dup "u" s:= if drop push-up   else
+  dup "d" s:= if drop push-down else
+  dup "c" s:= if drop push-car  else
+  dup "r" s:= if drop press-randoms if show-state then else
+  dup "p" s:= if drop set-priority  else
+  2drop bad-command
+  then then then then then ;
+
+: quit-sim  \ --
+  false running ! ;
+
+: parse-command  \ s --     ( s is a trimmed, non-quit line )
+  " " s:/
+  dup a:len nip 2 n:= if
+    dup 1 a:@ nip >n            \ a n|null
+    null? if
+      2drop bad-command
+    else
+      swap 0 a:@ nip dispatch   \ n cmd
+    then
+  else
+    drop bad-command
+  then ;
+
+: handle-command  \ s|null --
+  null? if drop quit-sim ;; then
+  s:trim
+  dup "q" s:= if drop quit-sim ;; then
+  dup "s" s:= if drop show-state ;; then
+  dup "x" s:= if drop clear-priority ;; then
+  dup "h" s:= if drop show-help ;; then
+  dup "?" s:= if drop show-help ;; then
+  dup "v" s:= if drop show-version ;; then
+  dup "" s:= if drop ;; then
+  parse-command ;
+
+: drain-commands  \ --   ( handle everything typed since last cycle )
+  repeat
+    t:qlen 0 n:> if
+      t:pop handle-command
+      true
+    else
+      false
+    then
+  while! ;
+
+\ ---------------------------------------------------------------------
+\ Simulation
+\ ---------------------------------------------------------------------
+
+\ One cycle of the elevator. Returns true if anything happened
+\ (moved, or opened doors to serve a call).
+: step  \ -- active?
+  doors-open @ if door-step true ;; then
+  should-stop? if
+    service true
+  else
+    current-floor @ next-floor
+    2dup n:= if
+      2drop false
+    else
+      nip dup current-floor !
+      log "Moving " . direction @ dir>s . " to floor " . . cr
+      true
+    then
+  then ;
+
+\ Priority mode: head straight for the priority floor, ignoring every
+\ other request, then open the doors once and hold there until cleared.
+\ Doors open somewhere other than the priority floor close at once
+\ (no boarding cycle); at the priority floor they open and stay open.
+: priority-step  \ --
+  priority @ current-floor @ n:-        \ distance to the priority floor
+  dup 0 n:= if
+    drop
+    holding @ not if
+      true holding !
+      0 direction !
+      doors-open @ not if open-doors then
+      log "PRIORITY: holding at floor " . current-floor @ . " with doors open" . cr
+    then
+  else doors-open @ if
+    drop close-doors
+  else
+    n:sgn dup direction !
+    current-floor @ n:+ current-floor !
+    log "PRIORITY: moving " . direction @ dir>s . " to floor " .
+    current-floor @ . cr
+  then then ;
+
+\ Normal mode bookkeeping: park after IDLE-LIMIT cycles without movement.
+: count-idle  \ active? --
+  if
+    0 idle-cycles !
+  else
+    idle-cycles @ n:1+ dup idle-cycles !
+    IDLE-LIMIT n:= if
+      0 direction !
+      log "No movement for " . IDLE-LIMIT . " cycles -- parked at floor " .
+      current-floor @ . cr
+    then
+  then ;
+
+: tick  \ --
+  drain-commands
+  running @ if
+    priority? if
+      priority-step
+    else
+      step count-idle
+    then
+    cycle @ n:1+ cycle !
+    CYCLE-DELAY-SECS sleep
+  then ;
+
+: run  \ --
+  repeat
+    tick
+    running @
+  while! ;
+
+show-help
+null rand-pcg-seed   \ different random presses each run
+\ Keep a reference to the task -- dropping it lets 8th free the task
+\ while it's still running.
+' reader t:task var, reader-task
+run
+\ The reader task is still blocked waiting for a line of input, which
+\ would keep bye from exiting. Kill it (no grace period) first.
+reader-task @ 0 t:kill
+"Stopped at floor " . current-floor @ . cr
+bye
