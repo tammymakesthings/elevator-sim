@@ -22,4 +22,3 @@ fi
 # echo "SCRIPT_FILE = ${SCRIPT_FILE}"
 
 exec ${EIGHTH} ${EIGHTH_OPTS} ${SCRIPT_FILE}
-

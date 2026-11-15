@@ -20,3 +20,5 @@ Tammy Cravit <tammy@tammymakesthings.com>
 ###  v1.00 - 2026-11-15
 - Initial Revision
 
+[8th]:   <https://8th-dev.com/>
+[forth]: <https://en.wikipedia.org/wiki/Forth_(programming_language)>

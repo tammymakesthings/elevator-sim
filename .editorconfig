@@ -11,7 +11,7 @@ charset = utf-8
 # 4 space indentation
 [*.8th]
 indent_style = space
-indent_size = 2 
+indent_size = 2
 
 # Tab indentation (no size specified)
 [Makefile]
@@ -21,4 +21,3 @@ indent_style = tab
 [{package.json,.travis.yml}]
 indent_style = space
 indent_size = 2
-

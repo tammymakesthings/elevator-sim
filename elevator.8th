@@ -1,4 +1,4 @@
-\ elevator.8th 
+\ elevator.8th
 \ ==============================================================================
 \ Simple elevator simulation, version 1.0
 \ 2026-11-15 Tammy Cravit <tammy@tammymakesthings.com>
@@ -24,7 +24,7 @@
 \   h, ?      show help
 \   v         show version
 \   q         quit
-\ 
+\
 \ Note that the simulation may take up to one cycle to act on command inputs.
 
 \ ---------------------------------------------------------------------
@@ -300,14 +300,14 @@ false var, doors-open
 
 : show-banner  \ --
   "******************************************************************************" . cr
-  "Elevator simulation v" . 
-  APP-VERSION . 
-  " (" . 
-  APP-DATE . 
-  ") -- " . 
-  FLOORS . 
+  "Elevator simulation v" .
+  APP-VERSION .
+  " (" .
+  APP-DATE .
+  ") -- " .
+  FLOORS .
   " floors" . cr
-  APP-AUTHOR . cr 
+  APP-AUTHOR . cr
   "******************************************************************************" . cr
   cr
   ;
