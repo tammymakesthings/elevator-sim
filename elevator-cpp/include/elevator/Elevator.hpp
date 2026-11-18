@@ -1,3 +1,11 @@
+//////////////////////////////////////////////////////////////////////////////
+/// Elevator Simulator in C++
+/// Copyright (c) 2026, Tammy Cravit <tammy@tammymakesthings.com>
+///
+/// SPDX-FileCopyrightText: 2026, Tammy Cravit <tammy@tammymakesthings.com>
+/// SPDX-License-Identifier: MIT
+//////////////////////////////////////////////////////////////////////////////
+
 #pragma once
 
 #include <cstdint>
@@ -9,7 +17,11 @@
 
 namespace elevator {
 
-enum class Direction { Down = -1, Idle = 0, Up = 1 };
+enum class Direction {
+    Down = -1,
+    Idle = 0,
+    Up = 1
+};
 
 // Lowercase name ("up", "down", "idle").
 std::string to_string(Direction d);
@@ -49,16 +61,16 @@ public:
     std::ostream& log() const;
 
     // --- Observers (used by the tests) ----------------------------------
-    int floors() const { return floors_; }
-    int currentFloor() const { return currentFloor_; }
-    int cycle() const { return cycle_; }
-    Direction direction() const { return direction_; }
-    bool doorsOpen() const { return doorsOpen_; }
-    std::optional<int> priority() const { return priority_; }
-    bool holding() const { return holding_; }
-    bool upPressed(int floor) const { return up_[index(floor)]; }
-    bool downPressed(int floor) const { return down_[index(floor)]; }
-    bool carPressed(int floor) const { return car_[index(floor)]; }
+    int floors() const                  { return floors_;             }
+    int currentFloor() const            { return currentFloor_;       }
+    int cycle() const                   { return cycle_;              }
+    Direction direction() const         { return direction_;          }
+    bool doorsOpen() const              { return doorsOpen_;          }
+    std::optional<int> priority() const { return priority_;           }
+    bool holding() const                { return holding_;            }
+    bool upPressed(int floor) const     { return up_[index(floor)];   }
+    bool downPressed(int floor) const   { return down_[index(floor)]; }
+    bool carPressed(int floor) const    { return car_[index(floor)];  }
 
 private:
     // Button arrays are indexed 0 .. floors-1 for floors 1 .. floors.

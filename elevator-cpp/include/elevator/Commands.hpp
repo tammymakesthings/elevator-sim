@@ -1,3 +1,11 @@
+//////////////////////////////////////////////////////////////////////////////
+/// Elevator Simulator in C++
+/// Copyright (c) 2026, Tammy Cravit <tammy@tammymakesthings.com>
+///
+/// SPDX-FileCopyrightText: 2026, Tammy Cravit <tammy@tammymakesthings.com>
+/// SPDX-License-Identifier: MIT
+//////////////////////////////////////////////////////////////////////////////
+
 #pragma once
 
 #include <optional>

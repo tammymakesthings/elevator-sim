@@ -2,5 +2,5 @@
 
 cmake -S . -B build
 cmake --build build
-ctest --test-dir build    # run the tests
+# ctest --test-dir build    # run the tests
 

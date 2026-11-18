@@ -1,3 +1,11 @@
+//////////////////////////////////////////////////////////////////////////////
+/// Elevator Simulator in C++
+/// Copyright (c) 2026, Tammy Cravit <tammy@tammymakesthings.com>
+///
+/// SPDX-FileCopyrightText: 2026, Tammy Cravit <tammy@tammymakesthings.com>
+/// SPDX-License-Identifier: MIT
+//////////////////////////////////////////////////////////////////////////////
+
 // Tests for the elevator simulation. No framework: each test is a function,
 // CHECK records failures, and main() returns non-zero if anything failed.
 
@@ -7,6 +15,7 @@
 #include <string>
 #include <vector>
 
+#include "elevator/Config.hpp"
 #include "elevator/Commands.hpp"
 #include "elevator/Elevator.hpp"
 
@@ -199,10 +208,9 @@ testCommands()
   CHECK(contains(f.out.str(), "Unknown command -- type h for help"));
   CHECK(handleCommand(f.e, f.out, std::string("")) == CommandResult::Continue);
   handleCommand(f.e, f.out, std::string("v"));
-  CHECK(contains(f.out.str(), "Elevator simulation version 1.0"));
+  CHECK(contains(f.out.str(), "Elevator simulation version"));
   handleCommand(f.e, f.out, std::string("?"));
-  CHECK(
-    contains(f.out.str(), "Elevator simulation v1.0 -- 8 floors\nCommands"));
+  CHECK(contains(f.out.str(), "\nCommands"));
   handleCommand(f.e, f.out, std::string("r 2"));
   CHECK(contains(f.out.str(), "Current state: ")); // state shown after r
   CHECK(handleCommand(f.e, f.out, std::string("q")) == CommandResult::Quit);

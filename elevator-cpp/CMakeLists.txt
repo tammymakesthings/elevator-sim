@@ -1,3 +1,9 @@
+# CMake file for C++ Elevator Simulator
+# Copyright (c) 2026, Tammy Cravit <tammy@tammymakesthings.com>
+#
+# SPDX-FileCopyrightText: 2026, Tammy Cravit <tammy@tammymakesthings.com>
+# SPDX-License-Identifier: MIT
+
 cmake_minimum_required(VERSION 3.16)
 
 project(elevator VERSION 1.0 LANGUAGES CXX)
